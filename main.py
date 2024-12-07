@@ -709,20 +709,24 @@ class Player:
                     self.attack_cooldown = 30
 
     def hit_player(self, other_player):
-        # Calculate damage
+        # Calculate damage (super tiny damage for very long fights!)
         if self.weapon == "sword":
-            damage = 8  # Reduced from 15
+            damage = 1  # Takes 100 hits to win!
         elif self.weapon == "bow":
-            damage = 5  # Reduced from 10
+            damage = 0.5  # Takes 200 hits to win!
         elif self.weapon == "spear":
-            damage = 11  # Very slightly decreased from 12 to 11
+            damage = 1.5  # Takes about 67 hits to win!
         
         # Apply damage
-        other_player.health = max(0, other_player.health - damage)
-        print(f"Player {self.player_num} dealt {damage} damage with {self.weapon}! Target health: {other_player.health}")
+        other_player.health -= damage
+        other_player.hit = True
+        other_player.hit_frame = 0
         
-        # Apply knockback
-        knockback = 20 if self.weapon == "sword" else 10  # Reduced from 30/15
+        # Keep health within bounds
+        other_player.health = max(0, other_player.health)
+        
+        # Apply very small knockback
+        knockback = 5 if self.weapon == "sword" else 3  # Tiny knockback
         direction = 1 if self.facing_right else -1
         other_player.x += knockback * direction
         
