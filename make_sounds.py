@@ -72,6 +72,88 @@ def create_oof_sound(filename, sample_rate=44100):
             packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
             wav_file.writeframes(packed_value)
 
+def create_ouch_sound():
+    # Create a short "ouch" sound
+    sample_rate = 44100
+    duration = 0.4  # Longer duration
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+    
+    # Create a more pronounced "ou" sound
+    freq_start = 600  # Higher start frequency
+    freq_end = 300   # Higher end frequency
+    freq = np.linspace(freq_start, freq_end, len(t))
+    ou_sound = np.sin(2 * np.pi * freq * t) * 0.8  # Louder amplitude
+    
+    # Add some vibrato for more expression
+    vibrato = np.sin(2 * np.pi * 12 * t) * 20
+    ou_sound = np.sin(2 * np.pi * (freq + vibrato) * t) * 0.8
+    
+    # Create a stronger "ch" sound
+    ch_duration = 0.15
+    ch_samples = int(sample_rate * ch_duration)
+    ch_sound = np.random.normal(0, 0.5, ch_samples)  # More noise
+    ch_sound = np.pad(ch_sound, (len(t) - len(ch_sound), 0))
+    
+    # Combine sounds
+    combined = ou_sound + ch_sound
+    
+    # Apply smoother envelope
+    envelope = np.exp(-2 * t)  # Slower decay
+    sound = combined * envelope
+    
+    # Amplify the final sound
+    return sound * 1.5  # Increased overall volume
+
+def make_sword_hit_sound():
+    duration = 0.1  # seconds
+    sample_rate = 44100
+    t = np.linspace(0, duration, int(sample_rate * duration))
+    
+    # Higher amplitude for louder sound
+    hit = np.sin(2 * np.pi * 440 * t) * 0.8
+    hit *= np.exp(-7 * t)  # Sharp decay
+    
+    return hit
+
+def make_bow_hit_sound():
+    duration = 0.15
+    sample_rate = 44100
+    t = np.linspace(0, duration, int(sample_rate * duration))
+    
+    # Higher amplitude for louder sound
+    hit = np.sin(2 * np.pi * 550 * t) * 0.8
+    hit *= np.exp(-5 * t)
+    
+    return hit
+
+def make_spear_hit_sound():
+    duration = 0.2
+    sample_rate = 44100
+    t = np.linspace(0, duration, int(sample_rate * duration))
+    
+    # Higher amplitude for louder sound
+    hit = np.sin(2 * np.pi * 330 * t) * 0.8
+    hit *= np.exp(-4 * t)
+    
+    return hit
+
+def make_ouch_sound():
+    duration = 0.4  # Longer duration
+    sample_rate = 44100
+    t = np.linspace(0, duration, int(sample_rate * duration))
+    
+    # Higher frequency for more pronounced sound
+    freq = 400 + np.sin(2 * np.pi * 5 * t) * 50  # Add vibrato
+    
+    # Higher amplitude for louder sound
+    ouch = np.sin(2 * np.pi * freq * t) * 0.9
+    
+    # Envelope for natural sound
+    envelope = np.exp(-3 * t)
+    ouch *= envelope
+    
+    return ouch
+
 # Create sword swing sound (higher pitch, shorter)
 create_sound('sounds/sword_swing.wav', 440, 0.15)
 
@@ -160,5 +242,45 @@ for i in range(int(duration * sample_rate)):
 with wave.open('sounds/roblox_oof.wav', 'w') as wav_file:
     wav_file.setparams((1, 2, sample_rate, len(samples), "NONE", "not compressed"))
     for sample in samples:
+        packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
+        wav_file.writeframes(packed_value)
+
+# Create ouch sound
+sound = create_ouch_sound()
+with wave.open('sounds/ouch.wav', 'w') as wav_file:
+    wav_file.setparams((1, 2, 44100, len(sound), "NONE", "not compressed"))
+    for sample in sound:
+        packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
+        wav_file.writeframes(packed_value)
+
+# Create sword hit sound
+sound = make_sword_hit_sound()
+with wave.open('sounds/sword_hit.wav', 'w') as wav_file:
+    wav_file.setparams((1, 2, 44100, len(sound), "NONE", "not compressed"))
+    for sample in sound:
+        packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
+        wav_file.writeframes(packed_value)
+
+# Create bow hit sound
+sound = make_bow_hit_sound()
+with wave.open('sounds/bow_hit.wav', 'w') as wav_file:
+    wav_file.setparams((1, 2, 44100, len(sound), "NONE", "not compressed"))
+    for sample in sound:
+        packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
+        wav_file.writeframes(packed_value)
+
+# Create spear hit sound
+sound = make_spear_hit_sound()
+with wave.open('sounds/spear_hit.wav', 'w') as wav_file:
+    wav_file.setparams((1, 2, 44100, len(sound), "NONE", "not compressed"))
+    for sample in sound:
+        packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
+        wav_file.writeframes(packed_value)
+
+# Create ouch sound
+sound = make_ouch_sound()
+with wave.open('sounds/ouch.wav', 'w') as wav_file:
+    wav_file.setparams((1, 2, 44100, len(sound), "NONE", "not compressed"))
+    for sample in sound:
         packed_value = struct.pack('h', int(max(-32767, min(32767, sample * 32767.0))))
         wav_file.writeframes(packed_value)
