@@ -15,6 +15,100 @@ except pygame.error:
     print("Error: Could not initialize pygame. Make sure it's installed correctly.")
     sys.exit(1)
 
+# Initialize global variables
+MENU = 0
+PLAYING = 1
+GAME_OVER = 2
+
+class GameMap:
+    def __init__(self, name, color, platform_color=(139, 69, 19)):
+        self.name = name
+        self.color = color
+        self.platform_color = platform_color
+
+# Game maps
+FOREST_MAP = GameMap("Forest", (135, 206, 235))  # Sky blue
+VOLCANO_MAP = GameMap("Volcano", (255, 100, 100))  # Red
+NIGHT_MAP = GameMap("Night", (20, 24, 82))  # Dark blue
+DESERT_MAP = GameMap("Desert", (255, 223, 186))  # Sandy
+
+MAPS = [FOREST_MAP, VOLCANO_MAP, NIGHT_MAP, DESERT_MAP]
+
+# Game state variables
+game_state = MENU
+p1_name_input = ""
+p2_name_input = ""
+active_input = None
+player1 = None
+player2 = None
+
+# Game font
+font = pygame.font.Font(None, 74)
+
+# Name input handling
+def handle_name_input(event):
+    global p1_name_input, p2_name_input, active_input
+    
+    # Handle mouse clicks for input boxes
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        # P1 input box
+        p1_box = pygame.Rect(WINDOW_WIDTH//4 - 75, 150, 150, 32)
+        if p1_box.collidepoint(event.pos):
+            active_input = 1
+        # P2 input box
+        p2_box = pygame.Rect(2*WINDOW_WIDTH//3 - 75, 150, 150, 32)
+        if p2_box.collidepoint(event.pos):
+            active_input = 2
+            
+    # Handle key presses for text input
+    if event.type == pygame.KEYDOWN and active_input > 0:
+        if event.key == pygame.K_RETURN:
+            active_input = 0
+        elif event.key == pygame.K_BACKSPACE:
+            if active_input == 1:
+                p1_name_input = p1_name_input[:-1]
+            else:
+                p2_name_input = p2_name_input[:-1]
+        else:
+            input_char = event.unicode
+            if len(input_char) > 0 and input_char.isprintable():
+                if active_input == 1 and len(p1_name_input) < 7:
+                    p1_name_input = p1_name_input + input_char
+                elif active_input == 2 and len(p2_name_input) < 7:
+                    p2_name_input = p2_name_input + input_char
+
+def draw_name_inputs(window, font):
+    global p1_name_input, p2_name_input, active_input
+    
+    # Make input boxes wider to fit text better
+    p1_box = pygame.Rect(WINDOW_WIDTH//4 - 75, 150, 150, 32)  # Increased width from 100 to 150
+    p2_box = pygame.Rect(2*WINDOW_WIDTH//3 - 75, 150, 150, 32)  # Increased width from 100 to 150
+    
+    # Draw boxes
+    box_color = (100, 100, 100)
+    pygame.draw.rect(window, box_color, p1_box, 2)
+    pygame.draw.rect(window, box_color, p2_box, 2)
+    
+    # Use a medium font for input text
+    input_font = pygame.font.Font(None, 28)  # Slightly larger than before, but still smaller than default
+    
+    # Render text
+    p1_text = input_font.render(p1_name_input + ('|' if active_input == 1 else ''), True, (0, 0, 0))
+    p2_text = input_font.render(p2_name_input + ('|' if active_input == 2 else ''), True, (0, 0, 0))
+    
+    # Center text in boxes
+    p1_x = p1_box.x + (p1_box.width - p1_text.get_width()) // 2
+    p2_x = p2_box.x + (p2_box.width - p2_text.get_width()) // 2
+    window.blit(p1_text, (p1_x, p1_box.y + 5))
+    window.blit(p2_text, (p2_x, p2_box.y + 5))
+    
+    # Draw labels
+    label_font = pygame.font.Font(None, 24)
+    p1_label = label_font.render("Enter P1 Name (max 7)", True, (0, 0, 0))
+    p2_label = label_font.render("Enter P2 Name (max 7)", True, (0, 0, 0))
+    window.blit(p1_label, (p1_box.x - 20, p1_box.y - 20))
+    window.blit(p2_label, (p2_box.x - 20, p2_box.y - 20))
+
 # Create a simple surface for weapons if images are not available
 def create_weapon_surface(color):
     surface = pygame.Surface((32, 32), pygame.SRCALPHA)
@@ -605,40 +699,34 @@ class Player:
                         (head_x, head_y + 15),  # Top of body (below head)
                         (int(self.x - body_lean/2), self.y + 20), 2)  # Bottom of body
 
-        # Draw face
-        eye_color = (0, 0, 0)
-        mouth_color = (0, 0, 0)
-        eye_spacing = 6
-        eye_y = head_y - 3
-
         # Eye positions based on facing direction
         if self.facing_right:
-            left_eye_x = head_x - eye_spacing
-            right_eye_x = head_x + eye_spacing
+            left_eye_x = head_x - 6
+            right_eye_x = head_x + 6
         else:
-            left_eye_x = head_x + eye_spacing
-            right_eye_x = head_x - eye_spacing
+            left_eye_x = head_x + 6
+            right_eye_x = head_x - 6
 
         # Draw expressions
         if self.hurt_flash > 0:
             # X eyes
-            pygame.draw.line(screen, eye_color, (left_eye_x - 2, eye_y - 2), (left_eye_x + 2, eye_y + 2), 2)
-            pygame.draw.line(screen, eye_color, (left_eye_x - 2, eye_y + 2), (left_eye_x + 2, eye_y - 2), 2)
-            pygame.draw.line(screen, eye_color, (right_eye_x - 2, eye_y - 2), (right_eye_x + 2, eye_y + 2), 2)
-            pygame.draw.line(screen, eye_color, (right_eye_x - 2, eye_y + 2), (right_eye_x + 2, eye_y - 2), 2)
+            pygame.draw.line(screen, (0, 0, 0), (left_eye_x - 2, head_y - 2), (left_eye_x + 2, head_y + 2), 2)
+            pygame.draw.line(screen, (0, 0, 0), (left_eye_x - 2, head_y + 2), (left_eye_x + 2, head_y - 2), 2)
+            pygame.draw.line(screen, (0, 0, 0), (right_eye_x - 2, head_y - 2), (right_eye_x + 2, head_y + 2), 2)
+            pygame.draw.line(screen, (0, 0, 0), (right_eye_x - 2, head_y + 2), (right_eye_x + 2, head_y - 2), 2)
             # Open mouth
-            pygame.draw.ellipse(screen, mouth_color, (head_x - 4, head_y + 3, 8, 6))
+            pygame.draw.ellipse(screen, (0, 0, 0), (head_x - 4, head_y + 3, 8, 6))
         else:
             # Normal eyes
-            pygame.draw.circle(screen, eye_color, (int(left_eye_x), int(eye_y)), 2)
-            pygame.draw.circle(screen, eye_color, (int(right_eye_x), int(eye_y)), 2)
+            pygame.draw.circle(screen, (0, 0, 0), (int(left_eye_x), int(head_y)), 2)
+            pygame.draw.circle(screen, (0, 0, 0), (int(right_eye_x), int(head_y)), 2)
             # Smile or worried expression
             if self.health > 50:
-                pygame.draw.arc(screen, mouth_color, 
+                pygame.draw.arc(screen, (0, 0, 0), 
                               (int(head_x - 5), int(head_y), 10, 8),
                               0, math.pi, 2)
             else:
-                pygame.draw.arc(screen, mouth_color,
+                pygame.draw.arc(screen, (0, 0, 0),
                               (int(head_x - 5), int(head_y + 3), 10, 8),
                               math.pi, 2*math.pi, 2)
 
@@ -687,6 +775,7 @@ class Player:
             # Calculate angles
             if self.attacking:
                 attack_progress = min(1.0, self.attack_frame / max(1, self.attack_duration))
+                
                 if attack_progress < 0.5:
                     base_angle = -45 + (attack_progress * 180)
                     wobble = math.sin(attack_progress * math.pi * 4) * 5  # Reduced wobble
@@ -953,31 +1042,70 @@ class Player:
             
             # Shield base (metallic circle)
             shield_size = 40
-            shield_surface = pygame.Surface((shield_size, shield_size), pygame.SRCALPHA)
+            shield_surface = pygame.Surface((shield_size, self.height), pygame.SRCALPHA)
             
             # Shield gradient (metallic effect)
-            for i in range(shield_size // 2):
+            for i in range(self.height // 2):
                 alpha = 255 - i * 4
                 color = (192, 192, 192, alpha)  # Silver color with fading alpha
-                pygame.draw.circle(shield_surface, color, (shield_size // 2, shield_size // 2), shield_size // 2 - i)
+                pygame.draw.rect(shield_surface, color, (0, i, shield_size, 1))
             
             # Shield border
-            pygame.draw.circle(shield_surface, (128, 128, 128), (shield_size // 2, shield_size // 2), shield_size // 2, 2)
+            pygame.draw.rect(shield_surface, (128, 128, 128), (0, 0, shield_size, self.height), 2)
             
             # Shield emblem (simple cross)
             emblem_color = (218, 165, 32)  # Golden color
             pygame.draw.line(shield_surface, emblem_color, 
                            (shield_size // 2, 5), 
-                           (shield_size // 2, shield_size - 5), 3)
+                           (shield_size // 2, self.height - 5), 3)
             pygame.draw.line(shield_surface, emblem_color, 
-                           (5, shield_size // 2), 
-                           (shield_size - 5, shield_size // 2), 3)
+                           (5, self.height // 2), 
+                           (shield_size - 5, self.height // 2), 3)
             
             # Draw the shield
-            shield_x = self.x + (self.width if self.facing_right else -40)
-            shield_y = self.y + 10
+            shield_x = self.x + (self.width if self.facing_right else -shield_size)
+            shield_y = self.y
             screen.blit(shield_surface, (shield_x, shield_y))
             
+            # Shield slightly smaller and angled
+            shield_color = (192, 192, 192)  # Silver color
+            shield_width = 35  # Shield width
+            shield_height = 50  # Shield height
+            
+            # Create shield surface for rotation
+            shield_surface = pygame.Surface((shield_width, shield_height), pygame.SRCALPHA)
+            
+            # Draw shield base
+            pygame.draw.rect(shield_surface, shield_color, (0, 0, shield_width, shield_height))
+            pygame.draw.rect(shield_surface, (128, 128, 128), (0, 0, shield_width, shield_height), 2)  # Border
+            
+            # Draw shield emblem (cross)
+            emblem_color = (128, 128, 128)  # Darker silver for emblem
+            pygame.draw.line(shield_surface, emblem_color, 
+                           (shield_width//2, 5), 
+                           (shield_width//2, shield_height-5), 3)
+            pygame.draw.line(shield_surface, emblem_color, 
+                           (5, shield_height//2), 
+                           (shield_width-5, shield_height//2), 3)
+            
+            # Position shield relative to player
+            if self.facing_right:
+                # Shield position when facing right
+                shield_x = self.x + self.width - 15  # Overlap with player
+                shield_y = self.y + 5  # Slightly below top
+                # Rotate shield slightly when facing right
+                rotated_shield = pygame.transform.rotate(shield_surface, -15)
+            else:
+                # Shield position when facing left
+                shield_x = self.x - shield_width + 15  # Overlap with player
+                shield_y = self.y + 5  # Slightly below top
+                # Rotate shield slightly when facing left
+                rotated_shield = pygame.transform.rotate(shield_surface, 15)
+            
+            # Get the rect of the rotated shield for proper positioning
+            shield_rect = rotated_shield.get_rect(center=(shield_x + shield_width//2, shield_y + shield_height//2))
+            screen.blit(rotated_shield, shield_rect.topleft)
+        
     def attack(self, other_player):
         if not self.attacking and self.attack_cooldown == 0:
             self.attacking = True
@@ -1192,6 +1320,32 @@ class GameOptions:
     def __init__(self):
         self.p1_weapon = "sword"  # "sword" or "bow" or "spear"
         self.p2_weapon = "sword"  # "sword" or "bow" or "spear"
+        self.current_map = MAPS[0]  # Default to Forest map
+    
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            for button in menu_weapon_buttons:
+                if button.handle_event(event):
+                    if button.player_num == 1:
+                        self.p1_weapon = button.weapon_type
+                    else:
+                        self.p2_weapon = button.weapon_type
+                    return True
+        return False
+    
+    def draw(self, window):
+        # Draw weapon selection text
+        font = pygame.font.Font(None, 36)
+        p1_text = font.render("P1 Weapon", True, (0, 0, 0))
+        p2_text = font.render("P2 Weapon", True, (0, 0, 0))
+        window.blit(p1_text, (WINDOW_WIDTH//4 - p1_text.get_width()//2, 200))
+        window.blit(p2_text, (3*WINDOW_WIDTH//4 - p2_text.get_width()//2, 200))
+        
+        # Draw all weapon buttons
+        for button in menu_weapon_buttons:
+            is_selected = (button.player_num == 1 and button.weapon_type == self.p1_weapon) or \
+                         (button.player_num == 2 and button.weapon_type == self.p2_weapon)
+            button.draw(window, font, is_selected)
 
 # Create global options
 game_options = GameOptions()
@@ -1272,6 +1426,9 @@ class WeaponButton:
         # Draw button
         pygame.draw.rect(window, color, self.rect)
         pygame.draw.rect(window, (0, 0, 0), self.rect, 2)
+        
+        if is_selected:
+            pygame.draw.rect(window, (255, 215, 0), self.rect, 4)  # Gold border for selected
         
         if self.weapon_type == "sword":
             # Diamond blade
@@ -1512,27 +1669,44 @@ class WeaponButton:
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
             self.hover = self.rect.collidepoint(event.pos)
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if self.hover:
-                button_click_sound.play()  # Play click sound
-                return True
+        elif event.type == pygame.MOUSEBUTTONDOWN and self.hover:
+            button_click_sound.play()  # Play click sound
+            return True
         return False
 
-# Create weapon buttons for both screens
-def create_weapon_buttons(y_position):
-    buttons = [
-        WeaponButton(WINDOW_WIDTH//4 - 50, y_position, 80, 40, "sword", 1),
-        WeaponButton(WINDOW_WIDTH//4 + 50, y_position, 80, 40, "bow", 1),
-        WeaponButton(WINDOW_WIDTH//4 + 150, y_position, 80, 40, "spear", 1),
-        WeaponButton(2*WINDOW_WIDTH//3 - 50, y_position, 80, 40, "sword", 2),  # Moved left from 3*WINDOW_WIDTH//4
-        WeaponButton(2*WINDOW_WIDTH//3 + 50, y_position, 80, 40, "bow", 2),    # Moved left accordingly
-        WeaponButton(2*WINDOW_WIDTH//3 + 150, y_position, 80, 40, "spear", 2)  # Moved left accordingly
-    ]
-    return buttons
+# Button class for menu
+class Button:
+    def __init__(self, x, y, width, height, text):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = (100, 100, 100)  # Default gray
+        self.hover_color = (150, 150, 150)  # Lighter gray for hover
+        self.text_color = (0, 0, 0)
+        self.font = pygame.font.Font(None, 32)
+        self.is_hovered = False
 
-# Create menu buttons with weapon options
-menu_weapon_buttons = create_weapon_buttons(WINDOW_HEIGHT//2 - 50)
-game_over_weapon_buttons = create_weapon_buttons(WINDOW_HEIGHT//2 - 50)
+    def draw(self, window):
+        # Draw button background
+        color = self.hover_color if self.is_hovered else self.color
+        pygame.draw.rect(window, color, self.rect)
+        pygame.draw.rect(window, (0, 0, 0), self.rect, 2)  # Black border
+        
+        # Draw text
+        text_surface = self.font.render(self.text, True, self.text_color)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        window.blit(text_surface, text_rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.is_hovered = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and self.is_hovered:
+            button_click_sound.play()  # Play click sound
+            return True
+        return False
+
+# Create menu buttons
+start_button = Button(WINDOW_WIDTH//2 - 100, WINDOW_HEIGHT - 100, 200, 40, "Start Game")
+quit_button = Button(WINDOW_WIDTH//2 - 40, WINDOW_HEIGHT - 50, 80, 30, "Quit")
 
 # Create background elements
 mountains = [
@@ -1569,20 +1743,24 @@ bench_color = (139, 69, 19)  # Dark wood color
 bench_border = (90, 50, 10)  # Darker wood for border
 
 def draw_window(window, player1, player2, mountains, benches, options):
-    # Draw sky first
-    draw_sky(window)
+    # Draw background with current map color
+    window.fill(options.current_map.color)
     
-    # Draw rest of the scene
+    # Draw mountains in background
     for mountain in mountains:
         mountain.draw(window)
     
-    # Draw all benches
+    # Draw benches with map color
     for bench in benches:
+        bench.color = options.current_map.color
         bench.draw(window)
     
-    # Draw ground
-    ground_rect = pygame.Rect(0, WINDOW_HEIGHT - 20, WINDOW_WIDTH, 20)
-    pygame.draw.rect(window, (40, 20, 0), ground_rect)  # Dark brown ground
+    # Draw players
+    player1.draw(window)
+    player2.draw(window)
+    
+    # Draw game object (particles, arrows, etc)
+    game.draw(window)
 
 def check_winner():
     if player1.health <= 0:
@@ -1592,106 +1770,355 @@ def check_winner():
     return None
 
 def draw_game_over(window, font, player1, player2):
-    # Draw semi-transparent overlay
-    overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-    overlay.set_alpha(128)
-    overlay.fill(BLACK)
-    window.blit(overlay, (0, 0))
+    # Draw background with current map color
+    window.fill(game_options.current_map.color)
     
-    # Draw winner text
-    winner_text = check_winner()
-    if winner_text:
-        text = font.render(winner_text, True, (0, 0, 0))
-        text_rect = text.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//3))
-        window.blit(text, text_rect)
+    # Draw title with smaller font
+    if player1.health <= 0:
+        winner = player2.name
+    else:
+        winner = player1.name
     
-    # Draw weapon selection
-    selection_font = pygame.font.Font(None, 32)
+    title_font = pygame.font.Font(None, 48)  # Smaller font size
+    title_text = title_font.render(f"{winner} Wins!", True, (0, 0, 0))
+    window.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, 50))
+    
+    # Draw player labels (exactly like home screen)
+    player_font = pygame.font.Font(None, 36)
+    p1_text = player_font.render("Player 1", True, (0, 0, 0))
+    p2_text = player_font.render("Player 2", True, (0, 0, 0))
+    window.blit(p1_text, (WINDOW_WIDTH//4 - 30, 100))  
+    window.blit(p2_text, (2*WINDOW_WIDTH//3 - 30, 100))
+    
+    # Draw name input boxes
+    draw_name_inputs(window, player_font)  # Use player_font size
+    
+    # Draw weapon selection text
+    p1_text = player_font.render("P1 Weapon", True, (0, 0, 0))
+    p2_text = player_font.render("P2 Weapon", True, (0, 0, 0))
+    window.blit(p1_text, (WINDOW_WIDTH//4 - p1_text.get_width()//2, 200))
+    window.blit(p2_text, (3*WINDOW_WIDTH//4 - p2_text.get_width()//2, 200))
     
     # Draw weapon buttons
     for button in game_over_weapon_buttons:
         is_selected = (button.player_num == 1 and button.weapon_type == game_options.p1_weapon) or \
                      (button.player_num == 2 and button.weapon_type == game_options.p2_weapon)
-        button.draw(window, selection_font, is_selected)
+        # Update hover state based on mouse position
+        mouse_pos = pygame.mouse.get_pos()
+        button.hover = button.rect.collidepoint(mouse_pos)
+        button.draw(window, player_font, is_selected)
     
-    # Draw play again and quit buttons lower
-    play_again_btn = Button(WINDOW_WIDTH//2 - 60, WINDOW_HEIGHT - 100, 120, 40, "Play Again")
-    quit_btn = Button(WINDOW_WIDTH//2 - 40, WINDOW_HEIGHT - 50, 80, 30, "Quit")
+    # Draw map selection text and buttons
+    map_text = player_font.render("Select Map", True, (0, 0, 0))
+    window.blit(map_text, (WINDOW_WIDTH//2 - map_text.get_width()//2, WINDOW_HEIGHT - 250))
     
-    play_again_btn.draw(window)
-    quit_btn.draw(window)
+    # Draw map buttons in a row
+    map_spacing = 120  # Space between map buttons
+    total_width = len(MAPS) * map_spacing
+    start_x = (WINDOW_WIDTH - total_width) // 2
     
-    return play_again_btn, quit_btn
+    for i, button in enumerate(map_buttons):
+        button.rect.x = start_x + i * map_spacing
+        button.rect.y = WINDOW_HEIGHT - 200
+        is_selected = button.map == game_options.current_map
+        # Update hover state based on mouse position
+        mouse_pos = pygame.mouse.get_pos()
+        button.is_hovered = button.rect.collidepoint(mouse_pos)
+        button.draw(window, player_font, is_selected)
+    
+    # Draw mountains in background
+    for mountain in mountains:
+        mountain.draw(window)
+    
+    # Draw benches with map color
+    for bench in benches:
+        bench.color = game_options.current_map.color
+        bench.draw(window)
+    
+    # Draw buttons at the bottom with hover state
+    mouse_pos = pygame.mouse.get_pos()
+    start_button.is_hovered = start_button.rect.collidepoint(mouse_pos)
+    quit_button.is_hovered = quit_button.rect.collidepoint(mouse_pos)
+    start_button.draw(window)
+    quit_button.draw(window)
 
-def draw_health_bars(window, player1, player2):
-    # Draw Player 1 health bar
-    pygame.draw.rect(window, RED, (50, 20, 200, 20))
-    pygame.draw.rect(window, GREEN, (50, 20, player1.health * 2, 20))
+def handle_game_over_events(event):
+    global game_state, running
     
-    # Draw Player 2 health bar
-    pygame.draw.rect(window, RED, (WINDOW_WIDTH - 250, 20, 200, 20))
-    pygame.draw.rect(window, GREEN, (WINDOW_WIDTH - 250, 20, player2.health * 2, 20))
+    # Handle name input
+    handle_name_input(event)
+    
+    # Handle weapon selection
+    for button in game_over_weapon_buttons:
+        if button.handle_event(event):
+            if button.player_num == 1:
+                game_options.p1_weapon = button.weapon_type
+            else:
+                game_options.p2_weapon = button.weapon_type
+    
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Handle start button click
+        if start_button.rect.collidepoint(mouse_pos):
+            start_new_game()
+            
+        # Handle quit button click
+        elif quit_button.rect.collidepoint(mouse_pos):
+            running = False
 
-# Button class for menu
-class Button:
-    def __init__(self, x, y, width, height, text):
+def handle_menu_events(event):
+    global game_state, running
+    
+    # First handle name input
+    handle_name_input(event)
+    
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Handle weapon selection
+        for button in menu_weapon_buttons:
+            if button.rect.collidepoint(mouse_pos):
+                if button.player_num == 1:
+                    game_options.p1_weapon = button.weapon_type
+                else:
+                    game_options.p2_weapon = button.weapon_type
+                return
+        
+        # Handle map selection
+        for button in map_buttons:
+            if button.rect.collidepoint(mouse_pos):
+                game_options.current_map = button.map
+                return
+        
+        # Handle start and quit buttons
+        if start_button.rect.collidepoint(mouse_pos):
+            if p1_name_input.strip() and p2_name_input.strip():
+                start_new_game()
+        elif quit_button.rect.collidepoint(mouse_pos):
+            running = False
+
+def handle_playing_events(event):
+    global game_state
+    
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        # Handle map selection during gameplay
+        mouse_pos = pygame.mouse.get_pos()
+        for button in map_buttons:
+            if button.rect.collidepoint(mouse_pos):
+                game_options.current_map = button.map
+                return
+    
+    if event.type == pygame.KEYDOWN:
+        # Player 1 jump with SPACE
+        if event.key == pygame.K_SPACE:
+            player1.dy = player1.jump_power
+            player1.is_jumping = True
+            player1.on_platform = False
+            player1.current_platform = None
+            jump_sound.play()  # Play jump sound
+        # Player 2 jump with UP
+        if event.key == pygame.K_UP:
+            player2.dy = player2.jump_power
+            player2.is_jumping = True
+            player2.on_platform = False
+            player2.current_platform = None
+            jump_sound.play()  # Play jump sound
+
+    # Get current keyboard state for attacks
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_q]:
+        player1.attack(player2)
+    elif keys[pygame.K_SLASH]:
+        player2.attack(player1)
+    
+    # Check for game over
+    if player1.health <= 0 or player2.health <= 0:
+        game_state = GAME_OVER
+
+def handle_game_over_events(event):
+    global game_state, running
+    
+    # Handle name input
+    handle_name_input(event)
+    
+    # Handle weapon selection
+    for button in game_over_weapon_buttons:
+        if button.handle_event(event):
+            if button.player_num == 1:
+                game_options.p1_weapon = button.weapon_type
+            else:
+                game_options.p2_weapon = button.weapon_type
+    
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Handle start button click
+        if start_button.rect.collidepoint(mouse_pos):
+            start_new_game()
+            
+        # Handle quit button click
+        elif quit_button.rect.collidepoint(mouse_pos):
+            running = False
+
+# Map selection button class
+class MapButton:
+    def __init__(self, x, y, width, height, map_data):
         self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.color = (100, 100, 100)  # Default gray
-        self.hover_color = (150, 150, 150)  # Lighter gray for hover
-        self.text_color = (0, 0, 0)
-        self.font = pygame.font.Font(None, 32)
+        self.map = map_data
         self.is_hovered = False
-
-    def draw(self, window):
-        # Draw button background
-        color = self.hover_color if self.is_hovered else self.color
+        self.font = pygame.font.Font(None, 24)  # Smaller font size
+    
+    def draw(self, window, font, is_selected):
+        # Draw button background with map color
+        color = self.map.color
+        if self.is_hovered:
+            # Make color lighter when hovered
+            color = tuple(min(c + 30, 255) for c in color)
+        
         pygame.draw.rect(window, color, self.rect)
         pygame.draw.rect(window, (0, 0, 0), self.rect, 2)  # Black border
         
-        # Draw text
-        text_surface = self.font.render(self.text, True, self.text_color)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        window.blit(text_surface, text_rect)
-
+        if is_selected:
+            pygame.draw.rect(window, (255, 215, 0), self.rect, 4)  # Gold border for selected
+        
+        # Draw map name with smaller font
+        text = self.font.render(self.map.name, True, (0, 0, 0))
+        text_rect = text.get_rect(center=self.rect.center)
+        window.blit(text, text_rect)
+    
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
             self.is_hovered = self.rect.collidepoint(event.pos)
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if self.is_hovered:
-                button_click_sound.play()  # Play click sound
-                return True
+        elif event.type == pygame.MOUSEBUTTONDOWN and self.is_hovered:
+            return True
         return False
 
-# Create menu buttons
-start_button = Button(WINDOW_WIDTH//2 - 100, WINDOW_HEIGHT - 100, 200, 40, "Start Game")
-quit_button = Button(WINDOW_WIDTH//2 - 40, WINDOW_HEIGHT - 50, 80, 30, "Quit")
+# Create map buttons
+map_buttons = []
+map_button_y = WINDOW_HEIGHT - 200  # Position above start button
+button_width = 100
+button_height = 40
+button_spacing = 20
 
-# Create players with their controls
-player1 = None
-player2 = None
-p1_name_input = ""
-p2_name_input = ""
-active_input = 0
+# Create buttons for each map
+for i, map_data in enumerate(MAPS):
+    x = (WINDOW_WIDTH - (len(MAPS) * (button_width + button_spacing) - button_spacing)) // 2 + i * (button_width + button_spacing)
+    button = MapButton(x, map_button_y, button_width, button_height, map_data)
+    map_buttons.append(button)
 
-# Game font
-font = pygame.font.Font(None, 74)
+# Set default map
+game_options.current_map = MAPS[0]
 
-# Game states
-MENU = 0
-PLAYING = 1
-GAME_OVER = 2
+# Update draw functions to show map buttons
+def draw_menu(window):
+    # Draw background with current map color
+    window.fill(game_options.current_map.color)
+    
+    # Draw sky elements
+    draw_sky(window)
+    
+    # Draw name input boxes
+    draw_name_inputs(window, font)
+    
+    # Draw weapon buttons
+    for button in menu_weapon_buttons:
+        is_selected = (button.player_num == 1 and button.weapon_type == game_options.p1_weapon) or \
+                     (button.player_num == 2 and button.weapon_type == game_options.p2_weapon)
+        button.draw(window, font, is_selected)
+    
+    # Draw map buttons
+    for button in map_buttons:
+        button.draw(window, font, button.map == game_options.current_map)
+    
+    # Draw menu buttons
+    start_button.draw(window)
+    quit_button.draw(window)
 
+# Update event handling to include map selection
+def handle_menu_events(event):
+    global game_state, running
+    
+    # Handle name input
+    handle_name_input(event)
+    
+    # Handle weapon selection
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        for button in menu_weapon_buttons:
+            if button.rect.collidepoint(event.pos):
+                if button.player_num == 1:
+                    game_options.p1_weapon = button.weapon_type
+                else:
+                    game_options.p2_weapon = button.weapon_type
+                return
+        
+        # Handle map selection
+        for button in map_buttons:
+            if button.rect.collidepoint(event.pos):
+                game_options.current_map = button.map
+                return
+        
+        # Handle start and quit buttons
+        mouse_pos = pygame.mouse.get_pos()
+        if start_button.rect.collidepoint(mouse_pos):
+            if p1_name_input.strip() and p2_name_input.strip():
+                start_new_game()
+        elif quit_button.rect.collidepoint(mouse_pos):
+            running = False
+
+def handle_menu_events(event):
+    global game_state, running
+    
+    # Handle name input
+    handle_name_input(event)
+    
+    # Only handle mouse events for button interactions
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        mouse_pos = event.pos
+        
+        # Handle weapon selection
+        for button in menu_weapon_buttons:
+            if button.rect.collidepoint(mouse_pos):
+                if button.player_num == 1:
+                    game_options.p1_weapon = button.weapon_type
+                else:
+                    game_options.p2_weapon = button.weapon_type
+                return
+        
+        # Handle map selection
+        for button in map_buttons:
+            if button.rect.collidepoint(mouse_pos):
+                game_options.current_map = button.map
+                return
+        
+        # Handle start and quit buttons
+        if start_button.rect.collidepoint(mouse_pos):
+            if p1_name_input.strip() and p2_name_input.strip():
+                start_new_game()
+        elif quit_button.rect.collidepoint(mouse_pos):
+            running = False
+
+# Create weapon buttons for both screens
+def create_weapon_buttons(y_position):
+    buttons = [
+        WeaponButton(WINDOW_WIDTH//4 - 50, y_position, 80, 40, "sword", 1),
+        WeaponButton(WINDOW_WIDTH//4 + 50, y_position, 80, 40, "bow", 1),
+        WeaponButton(WINDOW_WIDTH//4 + 150, y_position, 80, 40, "spear", 1),
+        WeaponButton(2*WINDOW_WIDTH//3 - 50, y_position, 80, 40, "sword", 2),
+        WeaponButton(2*WINDOW_WIDTH//3 + 50, y_position, 80, 40, "bow", 2),
+        WeaponButton(2*WINDOW_WIDTH//3 + 150, y_position, 80, 40, "spear", 2)
+    ]
+    return buttons
+
+# Create menu buttons with weapon options
+menu_weapon_buttons = create_weapon_buttons(WINDOW_HEIGHT//2 - 50)
+game_over_weapon_buttons = create_weapon_buttons(WINDOW_HEIGHT//2 - 50)
+
+# Initialize clock at the start
 clock = pygame.time.Clock()
 
-# Initialize game state
-game_state = MENU  # Start in menu state
-
-def reset_game():
-    global player1, player2, game_state, p1_name_input, p2_name_input
-    # Set player names from input
-    p1_name = p1_name_input if p1_name_input else "P1"
-    p2_name = p2_name_input if p2_name_input else "P2"
+def start_new_game():
+    global game_state, player1, player2, game
     
     # Create players with their selected weapons
     player1 = Player(100, WINDOW_HEIGHT - 100, (255, 0, 0), True, 
@@ -1699,74 +2126,23 @@ def reset_game():
     player2 = Player(WINDOW_WIDTH - 100, WINDOW_HEIGHT - 100, (0, 0, 255), False,
                     {"left": pygame.K_LEFT, "right": pygame.K_RIGHT, "up": pygame.K_UP, "attack": pygame.K_RETURN, "defend": pygame.K_RSHIFT}, 2)
     
-    # Set names and weapons
-    player1.name = p1_name
-    player2.name = p2_name
+    # Set names from current input (or default if empty)
+    player1.name = p1_name_input if p1_name_input else "P1"
+    player2.name = p2_name_input if p2_name_input else "P2"
+    
+    # Reset player health
+    player1.health = 100
+    player2.health = 100
+    
     # Set weapons from game options
     player1.weapon = game_options.p1_weapon
     player2.weapon = game_options.p2_weapon
     
+    # Reset game object
+    game = Game()
+    
+    # Change state to playing
     game_state = PLAYING
-
-# Add name input functions
-def draw_name_inputs(window, font):
-    global p1_name_input, p2_name_input, active_input
-    
-    # Draw input boxes
-    p1_box = pygame.Rect(WINDOW_WIDTH//4 - 50, 150, 100, 32)
-    p2_box = pygame.Rect(2*WINDOW_WIDTH//3 - 50, 150, 100, 32)
-    
-    # Draw boxes
-    box_color = (100, 100, 100)
-    pygame.draw.rect(window, box_color, p1_box, 2)
-    pygame.draw.rect(window, box_color, p2_box, 2)
-    
-    # Render text
-    p1_text = font.render(p1_name_input + ('|' if active_input == 1 else ''), True, (0, 0, 0))
-    p2_text = font.render(p2_name_input + ('|' if active_input == 2 else ''), True, (0, 0, 0))
-    
-    # Draw text
-    window.blit(p1_text, (p1_box.x + 5, p1_box.y + 5))
-    window.blit(p2_text, (p2_box.x + 5, p2_box.y + 5))
-    
-    # Draw labels
-    label_font = pygame.font.Font(None, 24)
-    p1_label = label_font.render("Enter P1 Name (max 7)", True, (0, 0, 0))
-    p2_label = label_font.render("Enter P2 Name (max 7)", True, (0, 0, 0))
-    window.blit(p1_label, (p1_box.x - 20, p1_box.y - 20))
-    window.blit(p2_label, (p2_box.x - 20, p2_box.y - 20))
-
-def handle_name_input(event):
-    global p1_name_input, p2_name_input, active_input
-    
-    # Handle mouse clicks for input boxes
-    if event.type == pygame.MOUSEBUTTONDOWN:
-        # P1 input box
-        p1_box = pygame.Rect(WINDOW_WIDTH//4 - 50, 150, 100, 32)
-        if p1_box.collidepoint(event.pos):
-            active_input = 1
-        # P2 input box
-        p2_box = pygame.Rect(2*WINDOW_WIDTH//3 - 50, 150, 100, 32)
-        if p2_box.collidepoint(event.pos):
-            active_input = 2
-            
-    # Handle keyboard input
-    if event.type == pygame.KEYDOWN and active_input:
-        if event.key == pygame.K_RETURN:
-            active_input = None
-        elif event.key == pygame.K_BACKSPACE:
-            if active_input == 1:
-                p1_name_input = p1_name_input[:-1]
-            else:
-                p2_name_input = p2_name_input[:-1]
-        else:
-            # Add character if within limit and is a valid character
-            if active_input == 1 and len(p1_name_input) < 7:
-                if event.unicode.isalnum() or event.unicode in ['-', '_']:
-                    p1_name_input += event.unicode
-            elif active_input == 2 and len(p2_name_input) < 7:
-                if event.unicode.isalnum() or event.unicode in ['-', '_']:
-                    p2_name_input += event.unicode
 
 # Game loop
 running = True
@@ -1780,78 +2156,27 @@ while running:
             running = False
         
         if game_state == MENU:
-            # Handle weapon selection
-            for button in menu_weapon_buttons:
-                if button.handle_event(event):
-                    if button.player_num == 1:
-                        game_options.p1_weapon = button.weapon_type
-                    else:
-                        game_options.p2_weapon = button.weapon_type
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = pygame.mouse.get_pos()
-                
-                # Check start button
-                if start_button.rect.collidepoint(mouse_pos):
-                    button_click_sound.play()  # Play click sound
-                    reset_game()  # Call reset_game to create players with selected weapons
-                    game_state = PLAYING
-                # Check quit button
-                if quit_button.rect.collidepoint(mouse_pos):
-                    button_click_sound.play()  # Play click sound
-                    running = False
-        
+            handle_menu_events(event)
         elif game_state == PLAYING:
-            if event.type == pygame.KEYDOWN:
-                # Player 1 jump with SPACE
-                if event.key == pygame.K_SPACE:
-                    player1.dy = player1.jump_power
-                    player1.is_jumping = True
-                    player1.on_platform = False
-                    player1.current_platform = None
-                    jump_sound.play()  # Play jump sound
-                # Player 2 jump with UP
-                if event.key == pygame.K_UP:
-                    player2.dy = player2.jump_power
-                    player2.is_jumping = True
-                    player2.on_platform = False
-                    player2.current_platform = None
-                    jump_sound.play()  # Play jump sound
-
-            # Get current keyboard state for attacks
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_q]:
-                player1.attack(player2)
-            elif keys[pygame.K_SLASH]:
-                player2.attack(player1)
-        
+            handle_playing_events(event)
         elif game_state == GAME_OVER:
-            # Handle weapon selection
-            for button in game_over_weapon_buttons:
-                if button.handle_event(event):
-                    if button.player_num == 1:
-                        game_options.p1_weapon = button.weapon_type
-                    else:
-                        game_options.p2_weapon = button.weapon_type
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = pygame.mouse.get_pos()
-                
-                # Check play again button
-                play_again_rect = pygame.Rect(WINDOW_WIDTH//2 - 60, WINDOW_HEIGHT - 100, 120, 40)
-                if play_again_rect.collidepoint(mouse_pos):
-                    button_click_sound.play()  # Play click sound
-                    reset_game()  # Reset the game state
-                    game_state = PLAYING
-                # Check quit button
-                quit_rect = pygame.Rect(WINDOW_WIDTH//2 - 40, WINDOW_HEIGHT - 50, 80, 30)
-                if quit_rect.collidepoint(mouse_pos):
-                    button_click_sound.play()  # Play click sound
-                    running = False
+            handle_game_over_events(event)
         
-        handle_name_input(event)
-    
     # Update game state
+    if game_state == MENU:
+        # Update button hover states
+        mouse_pos = pygame.mouse.get_pos()
+        start_button.is_hovered = start_button.rect.collidepoint(mouse_pos)
+        quit_button.is_hovered = quit_button.rect.collidepoint(mouse_pos)
+        
+        # Update map button hover states
+        for button in map_buttons:
+            button.is_hovered = button.rect.collidepoint(mouse_pos)
+        
+        # Update weapon button hover states
+        for button in menu_weapon_buttons:
+            button.hover = button.rect.collidepoint(mouse_pos)
+    
     if game_state == PLAYING:
         # Reset platform status at start of frame
         if player1:
@@ -1883,38 +2208,20 @@ while running:
         game.update()
         
         # Check for game over
-        if player1 and player2:
-            if player1.health <= 0 or player2.health <= 0:
-                game_state = GAME_OVER
+        if player1.health <= 0 or player2.health <= 0:
+            game_state = GAME_OVER
     
     # Draw everything
     screen.fill((135, 206, 235))  # Sky blue background
     
     if game_state == MENU:
-        draw_window(screen, player1, player2, mountains, benches, game_options)
-        draw_name_inputs(screen, pygame.font.Font(None, 32))
-        start_button.draw(screen)
-        quit_button.draw(screen)
-        title_font = pygame.font.Font(None, 48)  
-        player_font = pygame.font.Font(None, 32)  
-        title_text = title_font.render("Seowoo's Epic Battle Game", True, (0, 0, 0))
-        title_rect = title_text.get_rect(center=(WINDOW_WIDTH//2, 50))
-        screen.blit(title_text, title_rect)
-        p1_text = player_font.render("Player 1", True, (0, 0, 0))
-        p2_text = player_font.render("Player 2", True, (0, 0, 0))
-        screen.blit(p1_text, (WINDOW_WIDTH//4 - 30, 100))  
-        screen.blit(p2_text, (2*WINDOW_WIDTH//3 - 30, 100))  
-        for button in menu_weapon_buttons:
-            is_selected = (button.player_num == 1 and button.weapon_type == game_options.p1_weapon) or \
-                         (button.player_num == 2 and button.weapon_type == game_options.p2_weapon)
-            button.draw(screen, font, is_selected)
+        draw_menu(screen)
     elif game_state == PLAYING:
         draw_window(screen, player1, player2, mountains, benches, game_options)
         if player1:
             player1.draw(screen)
         if player2:
             player2.draw(screen)
-        draw_health_bars(screen, player1, player2)
         
         # Draw platforms (benches)
         for platform in platforms:
@@ -1926,6 +2233,20 @@ while running:
             pygame.draw.rect(screen, bench_color, (platform.left + 20, platform.bottom, leg_width, 30))
             pygame.draw.rect(screen, bench_color, (platform.right - 30, platform.bottom, leg_width, 30))
         
+        # Draw map buttons
+        map_spacing = 120  # Space between map buttons
+        total_width = len(MAPS) * map_spacing
+        start_x = (WINDOW_WIDTH - total_width) // 2
+        
+        for i, button in enumerate(map_buttons):
+            button.rect.x = start_x + i * map_spacing
+            button.rect.y = 10  # Position at top of screen
+            is_selected = button.map == game_options.current_map
+            # Update hover state
+            mouse_pos = pygame.mouse.get_pos()
+            button.is_hovered = button.rect.collidepoint(mouse_pos)
+            button.draw(screen, pygame.font.Font(None, 24), is_selected)
+        
         # Draw game particles
         game.draw(screen)
     elif game_state == GAME_OVER:
@@ -1934,11 +2255,10 @@ while running:
             player1.draw(screen)
         if player2:
             player2.draw(screen)
-        draw_health_bars(screen, player1, player2)
         draw_game_over(screen, font, player1, player2)
     
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(60)  # Limit to 60 FPS
 
 pygame.quit()
 sys.exit()
