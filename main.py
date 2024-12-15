@@ -15,6 +15,12 @@ except pygame.error:
     print("Error: Could not initialize pygame. Make sure it's installed correctly.")
     sys.exit(1)
 
+# Try to load a font that supports Korean characters
+try:
+    font = pygame.font.SysFont("malgun gothic", 74)  # Malgun Gothic is a Korean font available on Windows
+except:
+    font = pygame.font.Font(None, 74)  # Fallback to default font if Korean font is not available
+
 # Initialize global variables
 MENU = 0
 PLAYING = 1
@@ -30,7 +36,7 @@ class GameMap:
 FOREST_MAP = GameMap("Forest", (135, 206, 235))  # Sky blue
 VOLCANO_MAP = GameMap("Volcano", (255, 100, 100))  # Red
 NIGHT_MAP = GameMap("Night", (20, 24, 82))  # Dark blue
-DESERT_MAP = GameMap("Desert", (255, 223, 186))  # Sandy
+DESERT_MAP = GameMap("Desert", (255, 218, 170))  # Sandy color
 
 MAPS = [FOREST_MAP, VOLCANO_MAP, NIGHT_MAP, DESERT_MAP]
 
@@ -71,10 +77,11 @@ def handle_name_input(event):
                 p2_name_input = p2_name_input[:-1]
         else:
             input_char = event.unicode
+            # Allow any printable character (including Korean) up to 17 characters
             if len(input_char) > 0 and input_char.isprintable():
-                if active_input == 1 and len(p1_name_input) < 7:
+                if active_input == 1 and len(p1_name_input) < 17:
                     p1_name_input = p1_name_input + input_char
-                elif active_input == 2 and len(p2_name_input) < 7:
+                elif active_input == 2 and len(p2_name_input) < 17:
                     p2_name_input = p2_name_input + input_char
 
 def draw_name_inputs(window, font):
@@ -104,8 +111,8 @@ def draw_name_inputs(window, font):
     
     # Draw labels
     label_font = pygame.font.Font(None, 24)
-    p1_label = label_font.render("Enter P1 Name (max 7)", True, (0, 0, 0))
-    p2_label = label_font.render("Enter P2 Name (max 7)", True, (0, 0, 0))
+    p1_label = label_font.render("Enter P1 Name (max 17)", True, (0, 0, 0))
+    p2_label = label_font.render("Enter P2 Name (max 17)", True, (0, 0, 0))
     window.blit(p1_label, (p1_box.x - 20, p1_box.y - 20))
     window.blit(p2_label, (p2_box.x - 20, p2_box.y - 20))
 
@@ -291,8 +298,8 @@ class Airplane:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.speed = 3
-        self.size = random.uniform(3.5, 4.0)
+        self.speed = random.uniform(4, 6)  # Increased speed range
+        self.size = random.uniform(2.0, 2.5)  # Reduced size but still larger than birds (birds are around 0.8-1.2)
         self.trail_points = []
         self.window_color = (220, 220, 220)
         # Add lights
@@ -312,7 +319,7 @@ class Airplane:
             self.x = -200
             self.y = random.randint(30, 170)
             self.trail_points = []
-            self.size = random.uniform(3.2, 4.0)
+            self.size = random.uniform(2.0, 2.5)
     
     def draw(self, window):
         # Draw trail
@@ -381,9 +388,18 @@ class Airplane:
 birds = [Bird(random.randint(0, WINDOW_WIDTH), random.randint(50, 200)) 
          for _ in range(5)]
 airplanes = [
-    Airplane(-200 - i * 400, random.randint(50, 150))  # Reduced spacing between planes
-    for i in range(4)  # Increased to 4 planes
+    Airplane(-100 if random.random() < 0.5 else WINDOW_WIDTH + 100, 
+             random.randint(50, 150))
+    for _ in range(8)  # Increased from original number
 ]
+
+# Function to add new airplanes periodically
+def add_new_airplane():
+    if len(airplanes) < 8:  # Keep maximum 8 airplanes
+        # Randomly choose left or right side for new airplane
+        x = -100 if random.random() < 0.5 else WINDOW_WIDTH + 100
+        y = random.randint(50, 150)
+        airplanes.append(Airplane(x, y))
 
 def draw_sky(window):
     # Draw sky gradient
@@ -412,7 +428,7 @@ def draw_sky(window):
             airplane.x = -200
             airplane.y = random.randint(30, 170)  # Wider height range
             # Randomize size slightly each time
-            airplane.size = random.uniform(3.2, 4.0)
+            airplane.size = random.uniform(2.0, 2.5)
         if airplane.x > -200:  # Only draw and move if airplane is active
             airplane.draw(window)
             airplane.move()
@@ -827,34 +843,44 @@ class Player:
             ]
             pygame.draw.lines(screen, (220, 220, 220), False, edge_points, 1)
 
-            # Draw handle
-            handle_end_x = weapon_hand_x - math.cos(angle_rad) * handle_length
-            handle_end_y = weapon_hand_y - math.sin(angle_rad) * handle_length
-            pygame.draw.line(screen, handle_color, 
-                           (weapon_hand_x, weapon_hand_y), 
-                           (handle_end_x, handle_end_y), 4)
+            # Diamond pattern on blade
+            for i in range(3):
+                diamond_x = weapon_hand_x + 25 + (i * 15)
+                diamond_points = [
+                    (diamond_x, weapon_hand_y - 2),  # Top
+                    (diamond_x + 4, weapon_hand_y),  # Right
+                    (diamond_x, weapon_hand_y + 2),  # Bottom
+                    (diamond_x - 4, weapon_hand_y),  # Left
+                ]
+                pygame.draw.polygon(screen, diamond_shine, diamond_points)
+                pygame.draw.lines(screen, blade_edge, diamond_points, 1)
 
-            # Draw ornate cross guard
-            for offset in [-guard_width/2, guard_width/2]:
-                px = weapon_hand_x + math.cos(perp_angle) * offset
-                py = weapon_hand_y + math.sin(perp_angle) * offset
-                
-                # Draw guard ends
-                pygame.draw.circle(screen, gold_color, (int(px), int(py)), int(guard_height/2))
-                pygame.draw.circle(screen, handle_color, (int(px), int(py)), int(guard_height/2), 1)
+            # Gold diamond at base
+            diamond_size = 6
+            diamond_points = [
+                (weapon_hand_x + 15, weapon_hand_y - diamond_size),  # Top
+                (weapon_hand_x + 15 + diamond_size, weapon_hand_y),  # Right
+                (weapon_hand_x + 15, weapon_hand_y + diamond_size),  # Bottom
+                (weapon_hand_x + 15 - diamond_size, weapon_hand_y),  # Left
+            ]
+            pygame.draw.polygon(screen, gold_color, diamond_points)
+            pygame.draw.lines(screen, blade_edge, diamond_points, 1)
+
+            # Draw sword handle with wood grain
+            handle_x = weapon_hand_x + 15
+            draw_wood_handle(screen, handle_x, weapon_hand_y, 8, 20)
             
-            # Draw pommel (decorated end of handle)
-            pygame.draw.circle(screen, gold_color, (int(handle_end_x), int(handle_end_y)), 4)
-            # Add diamond decoration to pommel
-            pommel_diamond_size = 2
-            pommel_diamond_points = []
-            for i in range(4):
-                point_angle = math.pi/2 + (i * math.pi/2)
-                dx = handle_end_x + math.cos(point_angle) * pommel_diamond_size
-                dy = handle_end_y + math.sin(point_angle) * pommel_diamond_size
-                pommel_diamond_points.append((dx, dy))
-            pygame.draw.polygon(screen, diamond_color, pommel_diamond_points)
-            pygame.draw.polygon(screen, blade_edge, pommel_diamond_points, 1)
+            # Wood guard - thinner version
+            guard_x = weapon_hand_x + 15
+            pygame.draw.rect(screen, handle_color,
+                           (guard_x - 8, weapon_hand_y - 3, 16, 6))
+            
+            # Diamond shine effects on blade
+            for i in range(3):
+                shine_x = weapon_hand_x + 25 + (i*10)
+                pygame.draw.line(screen, diamond_shine,
+                               (shine_x, weapon_hand_y - 3 - i),
+                               (shine_x + 8, weapon_hand_y - 5 - i), 2)
 
         elif self.weapon == "bow":
             # Colors
@@ -1026,6 +1052,94 @@ class Player:
             pygame.draw.polygon(screen, diamond_shine, pommel_diamond_points)
             pygame.draw.polygon(screen, steel_dark, pommel_diamond_points, 1)
         
+        elif self.weapon == "axe":
+            # Colors
+            steel_color = (192, 192, 192)    # Lighter silver for blade
+            steel_dark = (64, 64, 64)        # Darker for outline
+            wood_color = (139, 69, 19)       # Brown for handle
+            
+            handle_length = 40  # Short handle
+            handle_width = 5    # Thicker handle
+            head_width = 30     # Wider axe head
+            head_height = 25    # Taller head height
+            
+            # Calculate positions based on direction
+            handle_end_x = self.x + (handle_length if self.facing_right else -handle_length)
+            
+            # Draw wooden handle
+            pygame.draw.line(screen, wood_color,
+                           (self.x, self.y),
+                           (handle_end_x, self.y),
+                           handle_width)
+            
+            # Draw axe head
+            if self.facing_right:
+                head_points = [
+                    (handle_end_x - 5, self.y - 2),           # Handle joint top
+                    (handle_end_x + 2, self.y - head_height), # Top back
+                    (handle_end_x + 20, self.y - head_height + 5), # Top front sharp
+                    (handle_end_x + 25, self.y),             # Front point
+                    (handle_end_x + 20, self.y + head_height - 5), # Bottom front sharp
+                    (handle_end_x + 2, self.y + head_height), # Bottom back
+                    (handle_end_x - 5, self.y + 2),          # Handle joint bottom
+                ]
+            else:
+                head_points = [
+                    (handle_end_x + 5, self.y - 2),           # Handle joint top
+                    (handle_end_x - 2, self.y - head_height), # Top back
+                    (handle_end_x - 20, self.y - head_height + 5), # Top front sharp
+                    (handle_end_x - 25, self.y),             # Front point
+                    (handle_end_x - 20, self.y + head_height - 5), # Bottom front sharp
+                    (handle_end_x - 2, self.y + head_height), # Bottom back
+                    (handle_end_x + 5, self.y + 2),          # Handle joint bottom
+                ]
+            
+            # Draw the axe head with outline
+            pygame.draw.polygon(screen, steel_color, head_points)
+            pygame.draw.polygon(screen, steel_dark, head_points, 2)
+        
+        elif self.weapon == "spear":
+            # Colors for spear
+            wood_color = (139, 69, 19)  # Brown for shaft
+            steel_color = (192, 192, 192)  # Silver for blade
+            
+            # Position spear lower
+            weapon_y = self.y + 20  # Move spear down
+            
+            # Draw spear shaft
+            shaft_length = 60
+            shaft_end_x = self.x + (shaft_length if self.facing_right else -shaft_length)
+            pygame.draw.line(screen, wood_color,
+                           (self.x, weapon_y),
+                           (shaft_end_x, weapon_y), 4)
+            
+            # Draw spear head
+            head_length = 20
+            head_width = 12
+            if self.facing_right:
+                head_points = [
+                    (shaft_end_x, weapon_y),  # Base
+                    (shaft_end_x + head_length, weapon_y),  # Tip
+                    (shaft_end_x + head_length - 5, weapon_y - head_width//2),  # Top barb
+                    (shaft_end_x + head_length - 5, weapon_y + head_width//2)   # Bottom barb
+                ]
+            else:
+                head_points = [
+                    (shaft_end_x, weapon_y),  # Base
+                    (shaft_end_x - head_length, weapon_y),  # Tip
+                    (shaft_end_x - head_length + 5, weapon_y - head_width//2),  # Top barb
+                    (shaft_end_x - head_length + 5, weapon_y + head_width//2)   # Bottom barb
+                ]
+            pygame.draw.polygon(screen, steel_color, head_points)  # Silver color
+            
+            # Add sharp edge highlight
+            edge_points = [
+                (shaft_end_x, weapon_y),  # Base
+                (shaft_end_x + (head_length-5) * (1 if self.facing_right else -1), weapon_y),  # Near tip
+                (shaft_end_x + head_length * (1 if self.facing_right else -1), weapon_y),  # Tip
+            ]
+            pygame.draw.lines(screen, (220, 220, 220), False, edge_points, 1)
+
         # Draw label below button
         button_font = pygame.font.Font(None, 24)
         label = f"{self.weapon.title()}"
@@ -1107,111 +1221,105 @@ class Player:
             screen.blit(rotated_shield, shield_rect.topleft)
         
     def attack(self, other_player):
-        if not self.attacking and self.attack_cooldown == 0:
+        if not self.attacking and self.attack_cooldown <= 0:
             self.attacking = True
             self.attack_frame = 0
-            # Set weapon-specific properties
+            
+            # Set attack properties based on weapon
             if self.weapon == "sword":
                 self.damage = 15
+                self.attack_duration = 20
+                self.attack_range = 60
+                self.attack_cooldown = 30
+                sword_swing_sound.play()
+            elif self.weapon == "bow":
+                self.damage = 12
+                self.attack_duration = 30
+                self.attack_range = 300
+                self.attack_cooldown = 45
+                # Create arrow
+                arrow_x = self.x + (30 if self.facing_right else -30)
+                arrow_y = self.y + 20
+                target_x = arrow_x + (300 if self.facing_right else -300)
+                target_y = other_player.y + 30
+                new_arrow = Arrow(arrow_x, arrow_y, target_x, target_y)
+                new_arrow.shooter = self  # Track who shot the arrow
+                game.arrows.append(new_arrow)
+                bow_hit_sound.play()
+            elif self.weapon == "spear":
+                self.damage = 8
+                self.attack_duration = 25
+                self.attack_range = 100
+                self.attack_cooldown = 40
+                spear_hit_sound.play()
+            elif self.weapon == "axe":
+                self.damage = 20
                 self.attack_duration = 20
                 self.attack_range = 50
                 self.attack_cooldown = 30
                 sword_swing_sound.play()
-            elif self.weapon == "bow":
-                self.damage = 5  # Halved base damage
-                self.attack_duration = 25  # Slightly slower
-                self.attack_range = 450  # Slightly reduced range
-                self.attack_cooldown = 35  # Longer cooldown
-                bow_hit_sound.play()
-            elif self.weapon == "spear":
-                self.damage = 12  # Reduced from 20 to 12
-                self.attack_duration = 25
-                self.attack_range = 120  # Good reach
-                self.attack_cooldown = 35  # Slightly reduced from 40
-                spear_hit_sound.play()
 
     def update_attack(self, other_player):
         # Update cooldown
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
-        
+            
         if self.attacking:
             self.attack_frame += 1
             
-            # Calculate distance and angle to target
+            # Get direction to other player
             dx = other_player.x - self.x
             dy = other_player.y - self.y
-            distance = math.sqrt(dx*dx + dy*dy)
+            distance = math.sqrt(dx * dx + dy * dy)
             
             # Check if target is in front of the attacker
             is_target_in_front = (dx > 0 and self.facing_right) or (dx < 0 and not self.facing_right)
             
-            # Weapon-specific attack logic
-            if self.weapon == "bow":
-                if self.attack_frame < self.attack_duration:
-                    self.charge_time += 0.5  # Reduced charge rate by half
-                else:
-                    # Only hit if charged and facing the right way
-                    if self.charge_time > 0 and is_target_in_front:
-                        if abs(dy) < 50:  # Vertical aim check
-                            self.hit_player(other_player)
-                            # Calculate angle to target
-                            angle = math.atan2(dy, dx)
-                            # Create arrow
-                            game.arrows.append(Arrow(self.x, self.y - 25, other_player.x, other_player.y - 25))
-                            # Create arrow trail
-                            for _ in range(5):
-                                angle_var = random.uniform(-0.2, 0.2)
-                                speed = random.uniform(5, 8)
-                                dx = math.cos(angle + angle_var) * speed
-                                dy = math.sin(angle + angle_var) * speed
-                                particles.append(Particle(self.x, self.y - 25, dx, dy, (139, 69, 19)))
-                    self.charge_time = 0
-                    self.attacking = False
-                    self.attack_frame = 0
-                    self.attack_cooldown = 35  # Match the longer cooldown
-                    self.attack_duration = 25  # Match the slower duration
-                    self.attack_range = 450  # Set attack range
-                    self.damage = 5  # Match the reduced base damage
-            elif self.weapon == "spear":
-                # Spear only hits at its max reach and in front
+            # Handle different weapon attacks
+            if self.weapon == "sword":
                 if self.attack_frame == self.attack_duration // 2:
-                    spear_range = (90, 140)  # Spear's effective range
-                    if is_target_in_front and distance >= spear_range[0] and distance <= spear_range[1]:
-                        other_player.health -= self.damage
-                        spear_hit_sound.play()
-                        # Create hit effect
-                        for _ in range(10):
-                            angle = random.uniform(0, 2 * math.pi)
-                            speed = random.uniform(2, 5)
-                            dx = math.cos(angle) * speed
-                            dy = math.sin(angle) * speed
-                            particles.append(Particle(other_player.x, other_player.y, dx, dy, (200, 200, 200)))
-                if self.attack_frame >= self.attack_duration:
-                    self.attacking = False
-                    self.attack_frame = 0
-            else:  # Sword
-                # Sword only hits in close range and in front
-                if self.attack_frame == self.attack_duration // 2:
-                    if is_target_in_front and distance < 80:  # Shorter sword range
+                    if is_target_in_front and distance < self.attack_range:
                         if abs(dy) < 40:  # Height check for sword
                             self.hit_player(other_player)
                 
                 if self.attack_frame >= self.attack_duration:
                     self.attacking = False
                     self.attack_frame = 0
-                    self.attack_cooldown = 30
+            elif self.weapon == "bow":
+                # Bow attack is handled through arrows
+                if self.attack_frame >= self.attack_duration:
+                    self.attacking = False
+                    self.attack_frame = 0
+            elif self.weapon == "spear":
+                if self.attack_frame == self.attack_duration // 2:
+                    if is_target_in_front and distance < self.attack_range:
+                        if abs(dy) < 40:
+                            self.hit_player(other_player)
+                
+                if self.attack_frame >= self.attack_duration:
+                    self.attacking = False
+                    self.attack_frame = 0
+            elif self.weapon == "axe":
+                if self.attack_frame == self.attack_duration // 2:
+                    if is_target_in_front and distance < self.attack_range:
+                        if abs(dy) < 40:
+                            self.hit_player(other_player)
+                
+                if self.attack_frame >= self.attack_duration:
+                    self.attacking = False
+                    self.attack_frame = 0
 
     def hit_player(self, other_player):
         if not other_player.defending:  # Only deal damage if the other player is not defending
             # Calculate damage based on weapon
             if self.weapon == "sword":
-                damage = 10
-            elif self.weapon == "bow":
                 damage = 15
+            elif self.weapon == "bow":
+                damage = 12
             elif self.weapon == "spear":
-                damage = 12 + min(self.spear_momentum * 2, 8)  # Extra damage from momentum
-            
+                damage = 8
+            elif self.weapon == "axe":
+                damage = 20
             # Apply damage
             other_player.health -= damage
             other_player.hurt_flash = 10  # Flash white when hit
@@ -1228,8 +1336,9 @@ class Player:
             elif self.weapon == "bow":
                 damage = 5
             elif self.weapon == "spear":
-                damage = 4 + min(self.spear_momentum * 0.5, 3)
-            
+                damage = 4
+            elif self.weapon == "axe":
+                damage = 5
             other_player.health -= damage
             other_player.hurt_flash = 5  # Shorter flash when blocked
 
@@ -1288,12 +1397,33 @@ class Arrow:
         self.lifetime = 30  # Arrow exists for 30 frames
         self.length = 20  # Arrow length in pixels
         self.angle = math.atan2(dy, dx)  # Store angle for drawing
+        self.shooter = None  # Reference to the player who shot the arrow
+        self.has_hit = False  # Track if arrow has hit something
 
     def update(self):
         self.x += self.dx
         self.y += self.dy
         self.lifetime -= 1
         return self.lifetime > 0
+
+    def check_collision(self, player):
+        if self.has_hit or self.shooter == player:  # Don't hit the shooter or if already hit
+            return False
+        
+        # Simple rectangle collision
+        arrow_rect = pygame.Rect(self.x - 5, self.y - 5, 10, 10)
+        
+        if arrow_rect.colliderect(player.rect):
+            self.has_hit = True
+            if not player.defending:
+                player.health -= 12  # Arrow damage
+                player.hurt_flash = 10
+                bow_hit_sound.play()
+            else:
+                player.health -= 4  # Reduced damage when blocked
+                player.hurt_flash = 5
+            return True
+        return False
 
     def draw(self, window):
         # Draw arrow body (line)
@@ -1318,8 +1448,8 @@ game = Game()
 # Game options
 class GameOptions:
     def __init__(self):
-        self.p1_weapon = "sword"  # "sword" or "bow" or "spear"
-        self.p2_weapon = "sword"  # "sword" or "bow" or "spear"
+        self.p1_weapon = "sword"  # "sword" or "bow" or "spear" or "axe"
+        self.p2_weapon = "sword"  # "sword" or "bow" or "spear" or "axe"
         self.current_map = MAPS[0]  # Default to Forest map
     
     def handle_event(self, event):
@@ -1440,14 +1570,13 @@ class WeaponButton:
                 (self.rect.centerx + 15, self.rect.centery),  # Base
                 (self.rect.centerx + (blade_length-10), self.rect.centery + 2),  # Bottom edge
             ]
-            # Fill with steel color
             pygame.draw.polygon(window, steel_color, blade_points)  # Light steel color
             
             # Add sharp edge highlight
             edge_points = [
                 (self.rect.centerx + blade_length, self.rect.centery),  # Tip
-                (self.rect.centerx + (blade_length-10), self.rect.centery - 2),  # Top edge
-                (self.rect.centerx + (blade_length-10), self.rect.centery + 2),  # Bottom edge
+                (self.rect.centerx + (blade_length-5), self.rect.centery - 2),  # Top edge
+                (self.rect.centerx + (blade_length-5), self.rect.centery + 2),  # Bottom edge
             ]
             pygame.draw.lines(window, steel_dark, True, edge_points, 1)
 
@@ -1658,6 +1787,51 @@ class WeaponButton:
                 pommel_diamond_points.append((dx, dy))
             pygame.draw.polygon(window, diamond_shine, pommel_diamond_points)
             pygame.draw.polygon(window, steel_dark, pommel_diamond_points, 1)
+        elif self.weapon_type == "axe":
+            # Colors
+            steel_color = (192, 192, 192)    # Lighter silver for blade
+            steel_dark = (64, 64, 64)        # Darker for outline
+            wood_color = (139, 69, 19)       # Brown for handle
+            
+            handle_length = 40  # Short handle
+            handle_width = 5    # Thicker handle
+            head_width = 30     # Wider axe head
+            head_height = 25    # Taller head height
+            
+            # Calculate positions based on direction
+            handle_end_x = self.rect.centerx + (handle_length if self.facing_right else -handle_length)
+            
+            # Draw wooden handle
+            pygame.draw.line(window, wood_color,
+                           (self.rect.centerx, self.rect.centery),
+                           (handle_end_x, self.rect.centery),
+                           handle_width)
+            
+            # Draw axe head
+            if self.facing_right:
+                head_points = [
+                    (handle_end_x - 5, self.rect.centery - 2),           # Handle joint top
+                    (handle_end_x + 2, self.rect.centery - head_height), # Top back
+                    (handle_end_x + 20, self.rect.centery - head_height + 5), # Top front sharp
+                    (handle_end_x + 25, self.rect.centery),             # Front point
+                    (handle_end_x + 20, self.rect.centery + head_height - 5), # Bottom front sharp
+                    (handle_end_x + 2, self.rect.centery + head_height), # Bottom back
+                    (handle_end_x - 5, self.rect.centery + 2),          # Handle joint bottom
+                ]
+            else:
+                head_points = [
+                    (handle_end_x + 5, self.rect.centery - 2),           # Handle joint top
+                    (handle_end_x - 2, self.rect.centery - head_height), # Top back
+                    (handle_end_x - 20, self.rect.centery - head_height + 5), # Top front sharp
+                    (handle_end_x - 25, self.rect.centery),             # Front point
+                    (handle_end_x - 20, self.rect.centery + head_height - 5), # Bottom front sharp
+                    (handle_end_x - 2, self.rect.centery + head_height), # Bottom back
+                    (handle_end_x + 5, self.rect.centery + 2),          # Handle joint bottom
+                ]
+            
+            # Draw the axe head with outline
+            pygame.draw.polygon(window, steel_color, head_points)
+            pygame.draw.polygon(window, steel_dark, head_points, 2)
         
         # Draw label below button
         button_font = pygame.font.Font(None, 24)
@@ -1743,24 +1917,75 @@ bench_color = (139, 69, 19)  # Dark wood color
 bench_border = (90, 50, 10)  # Darker wood for border
 
 def draw_window(window, player1, player2, mountains, benches, options):
-    # Draw background with current map color
-    window.fill(options.current_map.color)
+    # Draw background based on current map
+    if options.current_map == NIGHT_MAP:
+        # Draw stars
+        for _ in range(50):
+            x = random.randint(0, WINDOW_WIDTH)
+            y = random.randint(0, WINDOW_HEIGHT // 2)
+            pygame.draw.circle(window, (255, 255, 255), (x, y), 1)
+        
+        # Draw moon
+        pygame.draw.circle(window, (200, 200, 200), (100, 100), 30)
+        pygame.draw.circle(window, (20, 24, 82), (85, 85), 30)  # Dark overlay for crescent effect
+        
+        # Add slight dark overlay
+        dark_overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+        dark_overlay.fill((20, 24, 82))
+        dark_overlay.set_alpha(50)  # Reduced opacity to keep some color visible
+        window.blit(dark_overlay, (0, 0))
     
-    # Draw mountains in background
+    elif options.current_map == VOLCANO_MAP:
+        # Add smoke particles at volcano positions
+        if random.random() < 0.1:  # 10% chance each frame
+            for mountain in mountains:
+                smoke_particles.append(SmokeParticle(mountain.points[1][0], mountain.points[1][1]))
+        
+        # Add reddish glow effect
+        glow_overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+        glow_overlay.fill((255, 50, 0))
+        glow_overlay.set_alpha(20)  # Very subtle red glow
+        window.blit(glow_overlay, (0, 0))
+    
+    elif options.current_map == DESERT_MAP:
+        # Only update birds and airplanes in desert
+        clouds.clear()  # Remove clouds in desert
+        
+        # Make sand particles more visible
+        for particle in sand_particles:
+            particle.alpha = min(255, particle.alpha + 2)
+    
+    # Draw sky elements based on current map
+    if options.current_map != DESERT_MAP:  # No clouds in desert
+        for cloud in clouds:
+            cloud.move()
+            cloud.draw(window)
+    
+    for bird in birds:
+        bird.move()
+        bird.draw(window)
+    
+    for airplane in airplanes:
+        if airplane.x > WINDOW_WIDTH + 200:
+            airplane.x = -200
+            airplane.y = random.randint(30, 170)
+            airplane.size = random.uniform(2.0, 2.5)
+        if airplane.x > -200:  # Only draw and move if airplane is active
+            airplane.draw(window)
+            airplane.move()
+    
+    # Draw mountains and benches
     for mountain in mountains:
         mountain.draw(window)
     
-    # Draw benches with map color
     for bench in benches:
-        bench.color = options.current_map.color
         bench.draw(window)
     
     # Draw players
-    player1.draw(window)
-    player2.draw(window)
-    
-    # Draw game object (particles, arrows, etc)
-    game.draw(window)
+    if player1:
+        player1.draw(window)
+    if player2:
+        player2.draw(window)
 
 def check_winner():
     if player1.health <= 0:
@@ -1803,9 +2028,6 @@ def draw_game_over(window, font, player1, player2):
     for button in game_over_weapon_buttons:
         is_selected = (button.player_num == 1 and button.weapon_type == game_options.p1_weapon) or \
                      (button.player_num == 2 and button.weapon_type == game_options.p2_weapon)
-        # Update hover state based on mouse position
-        mouse_pos = pygame.mouse.get_pos()
-        button.hover = button.rect.collidepoint(mouse_pos)
         button.draw(window, player_font, is_selected)
     
     # Draw map selection text and buttons
@@ -2104,9 +2326,11 @@ def create_weapon_buttons(y_position):
         WeaponButton(WINDOW_WIDTH//4 - 50, y_position, 80, 40, "sword", 1),
         WeaponButton(WINDOW_WIDTH//4 + 50, y_position, 80, 40, "bow", 1),
         WeaponButton(WINDOW_WIDTH//4 + 150, y_position, 80, 40, "spear", 1),
+        WeaponButton(WINDOW_WIDTH//4 + 250, y_position, 80, 40, "axe", 1),
         WeaponButton(2*WINDOW_WIDTH//3 - 50, y_position, 80, 40, "sword", 2),
         WeaponButton(2*WINDOW_WIDTH//3 + 50, y_position, 80, 40, "bow", 2),
-        WeaponButton(2*WINDOW_WIDTH//3 + 150, y_position, 80, 40, "spear", 2)
+        WeaponButton(2*WINDOW_WIDTH//3 + 150, y_position, 80, 40, "spear", 2),
+        WeaponButton(2*WINDOW_WIDTH//3 + 250, y_position, 80, 40, "axe", 2)
     ]
     return buttons
 
@@ -2143,6 +2367,60 @@ def start_new_game():
     
     # Change state to playing
     game_state = PLAYING
+
+# Particle systems for different effects
+class SandParticle:
+    def __init__(self):
+        self.x = random.randint(0, WINDOW_WIDTH)
+        self.y = random.randint(0, WINDOW_HEIGHT)
+        self.speed_x = random.uniform(4, 8)
+        self.speed_y = random.uniform(-1, 1)
+        self.size = random.randint(1, 3)
+        self.color = (255, 218, 170)  # Sandy color
+        self.alpha = random.randint(100, 200)
+
+    def move(self):
+        self.x += self.speed_x
+        self.y += self.speed_y
+        if self.x > WINDOW_WIDTH:
+            self.x = 0
+            self.y = random.randint(0, WINDOW_HEIGHT)
+        self.alpha = max(0, self.alpha - 1)
+
+    def draw(self, window):
+        s = pygame.Surface((self.size, self.size))
+        s.set_alpha(self.alpha)
+        s.fill(self.color)
+        window.blit(s, (int(self.x), int(self.y)))
+
+class SmokeParticle:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed_x = random.uniform(-0.5, 0.5)
+        self.speed_y = random.uniform(-2, -1)
+        self.size = random.randint(3, 6)
+        self.color = (100, 100, 100)  # Gray smoke
+        self.alpha = random.randint(150, 255)
+
+    def move(self):
+        self.x += self.speed_x
+        self.y += self.speed_y
+        self.alpha = max(0, self.alpha - 2)
+        self.size += 0.1
+
+    def draw(self, window):
+        if self.alpha > 0:
+            s = pygame.Surface((int(self.size), int(self.size)))
+            s.set_alpha(self.alpha)
+            s.fill(self.color)
+            window.blit(s, (int(self.x), int(self.y)))
+
+# Initialize particles
+sand_particles = [SandParticle() for _ in range(100)]
+smoke_particles = []
+current_map_index = 0
+map_change_timer = 0
 
 # Game loop
 running = True
@@ -2204,12 +2482,36 @@ while running:
             player1.update_attack(player2)
             player2.update_attack(player1)
         
-        # Update game particles
+        # Update game particles and check arrow collisions
         game.update()
+        for arrow in game.arrows:
+            if player1 and arrow.shooter != player1:
+                arrow.check_collision(player1)
+            if player2 and arrow.shooter != player2:
+                arrow.check_collision(player2)
         
         # Check for game over
         if player1.health <= 0 or player2.health <= 0:
             game_state = GAME_OVER
+        
+        # Add new airplanes periodically
+        if random.random() < 0.05:
+            add_new_airplane()
+        
+        # Update sand particles
+        for particle in sand_particles:
+            particle.move()
+        
+        # Update smoke particles
+        for particle in smoke_particles:
+            particle.move()
+        
+        # Change map periodically
+        map_change_timer += 1
+        if map_change_timer >= 300:  # 5 seconds
+            current_map_index = (current_map_index + 1) % len(MAPS)
+            game_options.current_map = MAPS[current_map_index]
+            map_change_timer = 0
     
     # Draw everything
     screen.fill((135, 206, 235))  # Sky blue background
@@ -2249,6 +2551,14 @@ while running:
         
         # Draw game particles
         game.draw(screen)
+        
+        # Draw sand particles
+        for particle in sand_particles:
+            particle.draw(screen)
+        
+        # Draw smoke particles
+        for particle in smoke_particles:
+            particle.draw(screen)
     elif game_state == GAME_OVER:
         draw_window(screen, player1, player2, mountains, benches, game_options)
         if player1:
